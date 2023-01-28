@@ -1,3 +1,10 @@
+neoe changes ( use for cherry-pick )
+=============
+
+e1c3745a7c23e318e7e67c72301c83f6387cb677  --- add progress bar , see https://patchwork.ffmpeg.org/project/ffmpeg/patch/97651492098829@web50j.yandex.ru/
+
+
+
 FFmpeg README
 =============
 
