@@ -434,7 +434,10 @@ static int packet_queue_put_private(PacketQueue *q, AVPacket *pkt)
     /* XXX: should duplicate packet data in DV case */
     SDL_CondSignal(q->cond);
     return 0;
+
 }
+static int show_progress_line = 1;
+static void video_progress_line_display(VideoState *is) ;
 
 static int packet_queue_put(PacketQueue *q, AVPacket *pkt)
 {
@@ -1345,6 +1348,7 @@ static int video_open(VideoState *is)
     return 0;
 }
 
+
 /* display the current picture, if any */
 static void video_display(VideoState *is)
 {
@@ -1357,6 +1361,8 @@ static void video_display(VideoState *is)
         video_audio_display(is);
     else if (is->video_st)
         video_image_display(is);
+    if (show_progress_line)
+        video_progress_line_display(is);    
     SDL_RenderPresent(renderer);
 }
 
@@ -3338,6 +3344,9 @@ static void event_loop(VideoState *cur_stream)
                 toggle_audio_display(cur_stream);
 #endif
                 break;
+				case SDLK_l:
+                show_progress_line = !show_progress_line;
+                break;
             case SDLK_PAGEUP:
                 if (cur_stream->ic->nb_chapters <= 1) {
                     incr = 600.0;
@@ -3762,3 +3771,21 @@ int main(int argc, char **argv)
 
     return 0;
 }
+
+static void video_progress_line_display(VideoState *is) {
+    double d = is->ic->duration / 1.0e6;
+    int h=3;
+    if (d > 0) {
+        double t = get_master_clock(is);
+        int w = is->width * t / d;
+        SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+        fill_rectangle(0, is->height-h, w, h);
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        fill_rectangle(w, is->height-h, is->width-w, h);
+    } else {
+        show_progress_line = 0;
+    }
+}
+
+
+
