@@ -30,8 +30,8 @@ endif
 $(1)$(PROGSSUF)_g$(EXESUF): $$(OBJS-$(1))
 $$(OBJS-$(1)): | fftools
 $$(OBJS-$(1)): CFLAGS  += $(CFLAGS-$(1))
-$(1)$(PROGSSUF)_g$(EXESUF): LDFLAGS += $(LDFLAGS-$(1))
-$(1)$(PROGSSUF)_g$(EXESUF): FF_EXTRALIBS += $(EXTRALIBS-$(1))
+$(1)$(PROGSSUF)_g$(EXESUF): LDFLAGS += $(LDFLAGS-$(1))  
+$(1)$(PROGSSUF)_g$(EXESUF): FF_EXTRALIBS += $(EXTRALIBS-$(1)) -L/usr/local/lib -ltextfrog
 -include $$(OBJS-$(1):.o=.d)
 endef
 

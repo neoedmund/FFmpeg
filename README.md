@@ -44,3 +44,23 @@ GPL. Please refer to the LICENSE file for detailed information.
 Patches should be submitted to the ffmpeg-devel mailing list using
 `git format-patch` or `git send-email`. Github pull requests should be
 avoided because they are not part of our review process and will be ignored.
+
+
+# neoe: about lyrics
+
+I tried with `ffplay -f lavfi -i "color=c=0x777777@0.2:duration=99999999999:size=1280x720:rate=30, subtitles=aaa.lrc [out1]; amovie=aaa.opus [out0]"`
+
+* the subtitle(lyrics) not wrap
+* the duration is not good with seeking
+
+maybe all can be solved by tweak the option of ffplay,
+but, I feel I'd like to add my very own code here.
+
+the lyrics interface is :
+* open (filename)
+* position(pos)
+* seeked()
+* finished()
+
+
+

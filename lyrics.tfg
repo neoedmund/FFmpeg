@@ -1,0 +1,19 @@
+// lyrics
+runnable init {
+	log ( 'init in lyrics.tfg' )
+	//	/opt/lab/lab0/TestD/voicevox] nb mybuild
+	cp = loadJars ( [ '/opt/lab/lab0/TestD/voicevox/dist/voicevox_neoe.jar'
+			'/opt/lab/lab0/TestD/voicevox/dist/neoedb.jar' ] )
+	G . lyrics = JavaClass ( 'neoe.vv.LyricsSwing' cp ) . getInst ( )
+	log ( 'init in lyrics.tfg, lyrics=%s' G . lyrics )
+}
+func lyrics_seeked { G . lyrics . seeked ( ) }
+func lyrics_finished { G . lyrics . finished ( ) }
+func lyrics_process sec {
+	return G . lyrics . process ( toLong ( sec * 1000 ) )
+}
+func lyrics_open afn {
+	log ( 'open [%s]' afn )
+	return G . lyrics . open ( afn )
+}
+

@@ -59,6 +59,7 @@
 
 #include "cmdutils.h"
 #include "opt_common.h"
+#include "lyrics.h"
 
 const char program_name[] = "ffplay";
 const int program_birth_year = 2003;
@@ -257,7 +258,7 @@ typedef struct VideoState {
     int frame_drops_late;
 
     enum ShowMode {
-        SHOW_MODE_NONE = -1, SHOW_MODE_VIDEO = 0, SHOW_MODE_WAVES, SHOW_MODE_RDFT, SHOW_MODE_NB
+        SHOW_MODE_NONE = -1, SHOW_MODE_VIDEO = 0, SHOW_MODE_WAVES, SHOW_MODE_RDFT, /*SHOW_MODE_RYLICS,*/  SHOW_MODE_NB
     } show_mode;
     int16_t sample_array[SAMPLE_ARRAY_SIZE];
     int sample_array_index;
@@ -331,7 +332,7 @@ static int fast = 0;
 static int genpts = 0;
 static int lowres = 0;
 static int decoder_reorder_pts = -1;
-static int autoexit;
+static int autoexit = 1;
 static int exit_on_keydown;
 static int exit_on_mousedown;
 static int loop = 1;
@@ -434,7 +435,7 @@ static int packet_queue_put_private(PacketQueue *q, AVPacket *pkt)
 
 
 	static int show_progress_line = 1;
-	static void video_progress_line_display(VideoState *is) ;	
+	static void video_progress_line_display(VideoState *is) ;
 static int packet_queue_put(PacketQueue *q, AVPacket *pkt)
 {
     AVPacket *pkt1;
@@ -1356,8 +1357,8 @@ static void video_display(VideoState *is)
         video_audio_display(is);
     else if (is->video_st)
         video_image_display(is);
-    
-	if (show_progress_line) video_progress_line_display(is);	
+
+	if (show_progress_line) video_progress_line_display(is);
 SDL_RenderPresent(renderer);
 }
 
@@ -1469,6 +1470,8 @@ static void stream_seek(VideoState *is, int64_t pos, int64_t rel, int by_bytes)
             is->seek_flags |= AVSEEK_FLAG_BYTE;
         is->seek_req = 1;
         SDL_CondSignal(is->continue_read_thread);
+        printf("Lyrics.seeked()\n");
+        if (hasLyrics) 	lyrics_seeked();
     }
 }
 
@@ -1679,6 +1682,7 @@ display:
             video_display(is);
     }
     is->force_refresh = 0;
+
     if (show_status) {
         AVBPrint buf;
         static int64_t last_time;
@@ -1706,9 +1710,10 @@ display:
                 av_diff = get_master_clock(is) - get_clock(&is->audclk);
 
             av_bprint_init(&buf, 0, AV_BPRINT_SIZE_AUTOMATIC);
+            double mc ;
             av_bprintf(&buf,
                       "%7.2f %s:%7.3f fd=%4d aq=%5dKB vq=%5dKB sq=%5dB f=%"PRId64"/%"PRId64"   \r",
-                      get_master_clock(is),
+                      mc = get_master_clock(is),
                       (is->audio_st && is->video_st) ? "A-V" : (is->video_st ? "M-V" : (is->audio_st ? "M-A" : "   ")),
                       av_diff,
                       is->frame_drops_early + is->frame_drops_late,
@@ -1717,7 +1722,15 @@ display:
                       sqsize,
                       is->video_st ? is->viddec.avctx->pts_correction_num_faulty_dts : 0,
                       is->video_st ? is->viddec.avctx->pts_correction_num_faulty_pts : 0);
-
+				// yes here: printf("Lyrics.process(%f)\n" , mc);
+				if(hasLyrics) {
+					double seek= lyrics_process(mc);
+					if (seek!=0) {
+						printf("lyrics remember seek %f\n", seek);
+						// lyrics_seek = stream_seek( is, seek, 0, 0);
+						lyrics_seek= seek;
+					}
+				}
             if (show_status == 1 && AV_LOG_INFO > av_log_get_level())
                 fprintf(stderr, "%s", buf.str);
             else
@@ -2883,7 +2896,8 @@ static int read_thread(void *arg)
                                 st_index[AVMEDIA_TYPE_AUDIO],
                                 st_index[AVMEDIA_TYPE_VIDEO],
                                 NULL, 0);
-    if (!video_disable && !subtitle_disable)
+     printf(" -1) st_index[AVMEDIA_TYPE_SUBTITLE] = %x\n",  st_index[AVMEDIA_TYPE_SUBTITLE] );
+    if ( /* neoe !video_disable && */ !subtitle_disable) {
         st_index[AVMEDIA_TYPE_SUBTITLE] =
             av_find_best_stream(ic, AVMEDIA_TYPE_SUBTITLE,
                                 st_index[AVMEDIA_TYPE_SUBTITLE],
@@ -2891,7 +2905,10 @@ static int read_thread(void *arg)
                                  st_index[AVMEDIA_TYPE_AUDIO] :
                                  st_index[AVMEDIA_TYPE_VIDEO]),
                                 NULL, 0);
-
+printf(" st_index[AVMEDIA_TYPE_SUBTITLE] = %x\n",  st_index[AVMEDIA_TYPE_SUBTITLE] );
+                                }
+printf(" 0) st_index[AVMEDIA_TYPE_VIDEO] = %x\n",  st_index[AVMEDIA_TYPE_VIDEO] );
+printf(" 0) st_index[AVMEDIA_TYPE_AUDIO] = %x\n",  st_index[AVMEDIA_TYPE_AUDIO] );
     is->show_mode = show_mode;
     if (st_index[AVMEDIA_TYPE_VIDEO] >= 0) {
         AVStream *st = ic->streams[st_index[AVMEDIA_TYPE_VIDEO]];
@@ -2900,28 +2917,35 @@ static int read_thread(void *arg)
         if (codecpar->width)
             set_default_window_size(codecpar->width, codecpar->height, sar);
     }
-
+printf(" 2) st_index[AVMEDIA_TYPE_SUBTITLE] = %x\n",  st_index[AVMEDIA_TYPE_SUBTITLE] );
     /* open the streams */
     if (st_index[AVMEDIA_TYPE_AUDIO] >= 0) {
+        	printf("[d] 'open' audio\n");
         stream_component_open(is, st_index[AVMEDIA_TYPE_AUDIO]);
     }
-
+    	printf("[d] p 2911 \n");
     ret = -1;
     if (st_index[AVMEDIA_TYPE_VIDEO] >= 0) {
+        	printf("[d] 'open' video\n");
         ret = stream_component_open(is, st_index[AVMEDIA_TYPE_VIDEO]);
     }
     if (is->show_mode == SHOW_MODE_NONE)
         is->show_mode = ret >= 0 ? SHOW_MODE_VIDEO : SHOW_MODE_RDFT;
-
+printf(" 3) st_index[AVMEDIA_TYPE_SUBTITLE] = %x\n",  st_index[AVMEDIA_TYPE_SUBTITLE] );
     if (st_index[AVMEDIA_TYPE_SUBTITLE] >= 0) {
+    	printf("[d] 'open' subtitle\n");
         stream_component_open(is, st_index[AVMEDIA_TYPE_SUBTITLE]);
+    } else{
     }
-
     if (is->video_stream < 0 && is->audio_stream < 0) {
         av_log(NULL, AV_LOG_FATAL, "Failed to open file '%s' or configure filtergraph\n",
                is->filename);
         ret = -1;
         goto fail;
+    }
+    if (ret < 0) {
+    	printf("Lyrics.open(%s)\n", input_filename);
+    	hasLyrics = lyrics_open(input_filename);
     }
 
     if (infinite_buffer < 0 && is->realtime)
@@ -3004,9 +3028,13 @@ static int read_thread(void *arg)
             (!is->video_st || (is->viddec.finished == is->videoq.serial && frame_queue_nb_remaining(&is->pictq) == 0))) {
             if (loop != 1 && (!loop || --loop)) {
                 stream_seek(is, start_time != AV_NOPTS_VALUE ? start_time : 0, 0, 0);
-            } else if (autoexit) {
-                ret = AVERROR_EOF;
-                goto fail;
+            } else{
+	             printf("Lyrics finished(2)\n");
+	             if (hasLyrics) lyrics_finished();
+	            if (autoexit) {
+	                ret = AVERROR_EOF;
+	                goto fail;
+                }
             }
         }
         ret = av_read_frame(ic, pkt);
@@ -3021,10 +3049,10 @@ static int read_thread(void *arg)
                 is->eof = 1;
             }
             if (ic->pb && ic->pb->error) {
-                if (autoexit)
-                    goto fail;
-                else
-                    break;
+            	printf("Lyrics finished(1)\n");
+            	if (hasLyrics) lyrics_finished();
+                if (autoexit) goto fail;
+                else break;
             }
             SDL_LockMutex(wait_mutex);
             SDL_CondWaitTimeout(is->continue_read_thread, wait_mutex, 10);
@@ -3334,8 +3362,8 @@ static void event_loop(VideoState *cur_stream)
                     toggle_audio_display(cur_stream);
                 }
                 break;
-            
-case SDLK_l: 
+
+case SDLK_l:
 					show_progress_line = !show_progress_line;
 					break;
 case SDLK_PAGEUP:
@@ -3466,6 +3494,13 @@ case SDLK_PAGEUP:
             break;
         default:
             break;
+        }
+        { 
+        if (lyrics_seek!=0) {
+        	  stream_seek(cur_stream, lyrics_seek, 0, 0);
+        	  lyrics_seek=0;
+        	  printf("submit lyrics seek?\n");
+        }
         }
     }
 }
