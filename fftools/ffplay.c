@@ -1470,7 +1470,7 @@ static void stream_seek(VideoState *is, int64_t pos, int64_t rel, int by_bytes)
             is->seek_flags |= AVSEEK_FLAG_BYTE;
         is->seek_req = 1;
         SDL_CondSignal(is->continue_read_thread);
-        printf("Lyrics.seeked()\n");
+        printf("Lyrics.seeked(%ld)\n", pos);
         if (hasLyrics) 	lyrics_seeked();
     }
 }
@@ -1727,8 +1727,8 @@ display:
 					double seek= lyrics_process(mc);
 					if (seek!=0) {
 						printf("lyrics remember seek %f\n", seek);
-						// lyrics_seek = stream_seek( is, seek, 0, 0);
-						lyrics_seek= seek;
+						 stream_seek( is, seek*1000000, 0, 0);
+						// lyrics_seek= seek;
 					}
 				}
             if (show_status == 1 && AV_LOG_INFO > av_log_get_level())
@@ -3496,11 +3496,11 @@ case SDLK_PAGEUP:
             break;
         }
         { 
-        if (lyrics_seek!=0) {
-        	  stream_seek(cur_stream, lyrics_seek, 0, 0);
-        	  lyrics_seek=0;
-        	  printf("submit lyrics seek?\n");
-        }
+        // if (lyrics_seek!=0) {
+        // 	  stream_seek(cur_stream, lyrics_seek, 0, 0);
+        // 	  lyrics_seek=0;
+        // 	  printf("submit lyrics seek?\n");
+        // }
         }
     }
 }
