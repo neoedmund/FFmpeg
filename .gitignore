@@ -25,6 +25,10 @@
 *.ptx
 *.ptx.c
 *.ptx.gz
+*.run
+*.bin
+*.mp4
+*.mkv
 *_g
 \#*
 .\#*

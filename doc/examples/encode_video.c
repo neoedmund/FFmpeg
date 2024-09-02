@@ -25,6 +25,13 @@
  * @example encode_video.c
  *
  * Generate synthetic video data and encode it to an output file.
+
+ gcc -o encode_video.run encode_video.c -lavcodec -lavutil
+ ./encode_video.run tv265.bin libx265
+ ffprobe tv265.bin
+ ffmpeg -y -i tv265.bin -c:v libx265 tv265.mkv   // why encode again? but cannot copy?
+ ffprobe tv265.mkv
+
  */
 
 #include <stdio.h>
@@ -214,3 +221,4 @@ int main(int argc, char **argv)
 
     return 0;
 }
+

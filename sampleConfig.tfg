@@ -1,0 +1,13 @@
+/*
+tfg sampleConfig
+*/
+runnable main {
+	wd = '_b'
+	cmd = '../configure'
+	opts = parseData ( file ( 'sampleConfig.conf' ) ) . option
+
+	log ( 'opts=%s' '' + opts )
+	ret = execp ( wd cmd opts )
+	log ( '%s' '' + ret )
+}
+
