@@ -2,8 +2,9 @@
 tfg sampleConfig
 */
 runnable main {
-	wd = '_b'
-	cmd = '../configure'
+	wd = '../ffmpeg_b'
+	execp ( '.' 'mkdir' wd )
+	cmd = '../ffmpeg/configure'
 	opts = parseData ( file ( 'sampleConfig.conf' ) ) . option
 
 	log ( 'opts=%s' '' + opts )

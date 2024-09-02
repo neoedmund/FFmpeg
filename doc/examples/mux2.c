@@ -8,7 +8,7 @@
  * any supported libavformat format. The default codecs are used.
 
 	gcc -o mux2.run mux2.c -lavutil -lavcodec -lavformat -lswscale -lswresample -lm
-	./mux2.run mux2.mkv
+	./mux2.run mux2b.mkv
 	ffprobe mux2.mkv
 	ffplay -loop 99  mux2.mkv
 	
@@ -108,15 +108,15 @@ static int write_frame ( AVFormatContext * fmt_ctx , AVCodecContext * c ,
 /* Add an output stream. */
 static void add_stream ( OutputStream * ost , AVFormatContext * oc ,
 	const AVCodec * * codec ,
-	enum AVCodecID codec_id ) {
+	const char * name ) {
 	AVCodecContext * c ;
 	int i ;
 
 	/* find the encoder */
-	* codec = avcodec_find_encoder ( codec_id ) ;
+	* codec = avcodec_find_encoder_by_name ( name ) ;
 	if ( ! ( * codec ) ) {
 		fprintf ( stderr , "Could not find encoder for '%s'\n" ,
-			avcodec_get_name ( codec_id ) ) ;
+			name ) ;
 		exit ( 1 ) ;
 	}
 
@@ -143,7 +143,7 @@ static void add_stream ( OutputStream * ost , AVFormatContext * oc ,
 		case AVMEDIA_TYPE_AUDIO :
 		c -> sample_fmt = ( * codec ) -> sample_fmts ?
 		( * codec ) -> sample_fmts [ 0 ] : AV_SAMPLE_FMT_FLTP ;
-	//	c -> bit_rate = 64000 ;
+		//	c -> bit_rate = 64000 ;
 		c -> sample_rate = 44100 ;
 		if ( ( * codec ) -> supported_samplerates ) {
 			c -> sample_rate = ( * codec ) -> supported_samplerates [ 0 ] ;
@@ -157,9 +157,9 @@ static void add_stream ( OutputStream * ost , AVFormatContext * oc ,
 		break ;
 
 		case AVMEDIA_TYPE_VIDEO :
-		c -> codec_id = codec_id ;
+		c -> codec_id = ( * codec ) -> id ;
 
-	//	c -> bit_rate = 400000 ;
+		//	c -> bit_rate = 400000 ;
 		/* Resolution must be a multiple of two. */
 		c -> width = 1280 ;
 		c -> height = 720 ;
@@ -173,15 +173,16 @@ static void add_stream ( OutputStream * ost , AVFormatContext * oc ,
 		c -> gop_size = STREAM_FRAME_RATE * 2 ;
 		/* emit one intra frame every twelve frames at most */
 		c -> pix_fmt = STREAM_PIX_FMT ;
+		av_opt_set ( c -> priv_data , "preset" , "veryfast" , 0 ) ;
 		if ( c -> codec_id == AV_CODEC_ID_MPEG2VIDEO ) {
 			/* just for testing, we also add B-frames */
-		//	c -> max_b_frames = 2 ;
+			//	c -> max_b_frames = 2 ;
 		}
 		if ( c -> codec_id == AV_CODEC_ID_MPEG1VIDEO ) {
 			/* Needed to avoid using macroblocks in which some coeffs overflow.
              * This does not happen with normal video, it just happens here as
              * the motion of the chroma plane does not match the luma plane. */
-		//	c -> mb_decision = 2 ;
+			//	c -> mb_decision = 2 ;
 		}
 		break ;
 
@@ -535,7 +536,7 @@ int main ( int argc , char * * argv ) {
 	}
 
 	/* allocate the output media context */
-	avformat_alloc_output_context2 ( & oc , NULL , NULL , filename ) ;
+	avformat_alloc_output_context2 ( & oc , NULL , "matroska" , filename ) ;
 	if ( ! oc ) {
 		printf ( "Could not deduce output format from file extension: using MPEG.\n" ) ;
 		avformat_alloc_output_context2 ( & oc , NULL , "mpeg" , filename ) ;
@@ -548,12 +549,12 @@ int main ( int argc , char * * argv ) {
 	/* Add the audio and video streams using the default format codecs
      * and initialize the codecs. */
 	if ( fmt -> video_codec != AV_CODEC_ID_NONE ) {
-		add_stream ( & video_st , oc , & video_codec , fmt -> video_codec ) ;
+		add_stream ( & video_st , oc , & video_codec , "libx265" ) ; // fmt -> video_codec ) ;
 		have_video = 1 ;
 		encode_video = 1 ;
 	}
 	if ( fmt -> audio_codec != AV_CODEC_ID_NONE ) {
-		add_stream ( & audio_st , oc , & audio_codec , fmt -> audio_codec ) ;
+		add_stream ( & audio_st , oc , & audio_codec , "libopus" ) ; //fmt -> audio_codec ) ;
 		have_audio = 1 ;
 		encode_audio = 1 ;
 	}
