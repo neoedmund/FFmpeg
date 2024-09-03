@@ -8,7 +8,12 @@ runnable main {
 	opts = parseData ( file ( 'sampleConfig.conf' ) ) . option
 
 	log ( 'opts=%s' '' + opts )
-	ret = execp ( wd cmd opts )
+	checkRet ( execp ( wd cmd opts ) )
+	checkRet ( execp ( wd 'bash' '-c'
+			format ( "cd %s && cc='ccache gcc' make -j%s && sudo make install && ldconfig" wd cpuCount ( ) ) ) )
+}
+func checkRet ret {
 	log ( '%s' '' + ret )
+	confirm ( ret [ 2 ] == 0 'error in ret' )
 }
 

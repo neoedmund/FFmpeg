@@ -8,9 +8,9 @@
  * any supported libavformat format. The default codecs are used.
 
 NOT WORK YET:
-	gcc -o mux2d.run mux2d.c  -fpic -lm -ldl -r
-	// -Wl,--unresolved-symbols=ignore-all 
-	// -Wl,-Bsymbolic
+	gcc -g3 -o mux2d.run mux2d.c -I/opt/lab/lab3/textfrog/embed  -fpic -lm -ldl  -lavutil -lavcodec -lavformat -lswscale -lswresample -ltextfrog
+	// -Wl,--unresolved-symbols=ignore-all // -Wl,-Bsymbolic
+	gdb --args 	./mux2d.run mux2.mkv
 	./mux2d.run mux2.mkv
 	ffprobe mux2.mkv
 	ffplay -loop 99  mux2.mkv
@@ -32,7 +32,8 @@ NOT WORK YET:
 # include <libavformat/avformat.h>
 # include <libswscale/swscale.h>
 # include <libswresample/swresample.h>
-
+# include "textfrog.h"
+static textfrog tfg ;
 # define STREAM_DURATION 3.0
 # define STREAM_FRAME_RATE 30 /* 25 images/s */
 # define STREAM_PIX_FMT AV_PIX_FMT_YUV420P /* default pix_fmt */
@@ -180,16 +181,7 @@ static void add_stream ( OutputStream * ost , AVFormatContext * oc ,
 		/* emit one intra frame every twelve frames at most */
 		c -> pix_fmt = STREAM_PIX_FMT ;
 		av_opt_set ( c -> priv_data , "preset" , "veryfast" , 0 ) ;
-		if ( c -> codec_id == AV_CODEC_ID_MPEG2VIDEO ) {
-			/* just for testing, we also add B-frames */
-			//	c -> max_b_frames = 2 ;
-		}
-		if ( c -> codec_id == AV_CODEC_ID_MPEG1VIDEO ) {
-			/* Needed to avoid using macroblocks in which some coeffs overflow.
-             * This does not happen with normal video, it just happens here as
-             * the motion of the chroma plane does not match the luma plane. */
-			//	c -> mb_decision = 2 ;
-		}
+
 		break ;
 
 		default :
@@ -449,6 +441,10 @@ static void fill_yuv_image ( AVFrame * pict , int frame_index ,
 			pict -> data [ 2 ] [ y * pict -> linesize [ 2 ] + x ] = 64 + x + i * 5 ;
 		}
 	}
+	// also add java layer
+	tfg_call2 ( tfg , "draw" , "LLLLLLLLL" , frame_index , width , height ,
+		pict -> data [ 0 ] , pict -> data [ 1 ] , pict -> data [ 2 ] ,
+		pict -> linesize [ 0 ] , pict -> linesize [ 1 ] , pict -> linesize [ 2 ] ) ;
 }
 
 static AVFrame * get_video_frame ( OutputStream * ost ) {
@@ -477,6 +473,9 @@ static AVFrame * get_video_frame ( OutputStream * ost ) {
 				fprintf ( stderr ,
 					"Could not initialize the conversion context\n" ) ;
 				exit ( 1 ) ;
+			} else {
+				printf ( "[d]yuv->%d sws created, but unexpected comes here\n" , c -> pix_fmt ) ;
+				exit ( 1 ) ;
 			}
 		}
 		fill_yuv_image ( ost -> tmp_frame , ost -> next_pts , c -> width , c -> height ) ;
@@ -484,6 +483,7 @@ static AVFrame * get_video_frame ( OutputStream * ost ) {
 			ost -> tmp_frame -> linesize , 0 , c -> height , ost -> frame -> data ,
 			ost -> frame -> linesize ) ;
 	} else {
+		printf ( "[d]fill yuv\n" ) ;
 		fill_yuv_image ( ost -> frame , ost -> next_pts , c -> width , c -> height ) ;
 	}
 
@@ -513,16 +513,21 @@ static void close_stream ( AVFormatContext * oc , OutputStream * ost ) {
 /* media file output */
 
 int main ( int argc , char * * argv ) {
-	// -lavutil -lavcodec -lavformat -lswscale -lswresample
 	// libavutil libavcodec libavformat libswscale libswresample
-	printf ( "--------1\n" ) ;
-	dlopen ( "/usr/local/lib/libavutil.so" , RTLD_NOW | RTLD_GLOBAL ) ;
-	dlopen ( "/usr/local/lib/libavcodec.so" , RTLD_NOW | RTLD_GLOBAL ) ;
-	dlopen ( "/usr/local/lib/libavformat.so" , RTLD_NOW | RTLD_GLOBAL ) ;
-	dlopen ( "/usr/local/lib/libswscale.so" , RTLD_NOW | RTLD_GLOBAL ) ;
-	dlopen ( "/usr/local/lib/libswresample.so" , RTLD_NOW | RTLD_GLOBAL ) ;
-	printf ( "--------2\n" ) ;
-
+	// 	printf ( "--------1/n" ) ;
+	// 	dlopen ( "/usr/local/lib/libavutil.so" , RTLD_NOW | RTLD_GLOBAL ) ;
+	// 	dlopen ( "/usr/local/lib/libavcodec.so" , RTLD_NOW | RTLD_GLOBAL ) ;
+	// 	dlopen ( "/usr/local/lib/libavformat.so" , RTLD_NOW | RTLD_GLOBAL ) ;
+	// 	dlopen ( "/usr/local/lib/libswscale.so" , RTLD_NOW | RTLD_GLOBAL ) ;
+	// 	dlopen ( "/usr/local/lib/libswresample.so" , RTLD_NOW | RTLD_GLOBAL ) ;
+	// 	printf ( "--------2\n" ) ;
+	tfg = tfg_init ( 1 ) ;
+	if ( tfg != 0 ) {
+		printf ( "tfg init ok\n" ) ;
+	} else {
+		printf ( "tfg init failed\n" ) ;
+	}
+	tfg_include ( tfg , "myapp.tfg" ) ;
 	OutputStream video_st = { 0 } , audio_st = { 0 } ;
 	const AVOutputFormat * fmt ;
 	const char * filename ;

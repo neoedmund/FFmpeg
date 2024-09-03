@@ -1,0 +1,11 @@
+runnable init {
+	log ( 'init in tfg' )
+	checkExec ( execp ( '/opt/lab/lab0/TestD/yuv' 'nb' 'mybuild' ) )
+	G . ex1 = JavaClass ( 'neoe.yuv.Sample' loadJars ( array ( '/opt/lab/lab0/TestD/yuv/dist' ) ) )
+	log ( 'load java class yuv' )
+}
+
+func draw ( frame_index width height d0 d1 d2 s0 s1 s2 ) {
+	G . ex1 . draw ( frame_index width height d0 d1 d2 s0 s1 s2 )
+}
+
