@@ -16,7 +16,8 @@ NOT WORK YET:
 
 kill.tfg ffplay
 libx265 has some picture errors than libx264
-	
+libx265 has ghost, then av1 is best right now.
+ffmpeg use svtav1Enc for encoder but not svtav1Dec for decode, but use libdav1d..
  */
 
 # include <stdlib.h>
