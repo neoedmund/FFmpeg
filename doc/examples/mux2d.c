@@ -8,12 +8,14 @@
  * any supported libavformat format. The default codecs are used.
 
 NOT WORK YET:
-	gcc -g3 -o mux2d.run mux2d.c -I/opt/lab/lab3/textfrog/embed  -fpic -lm -ldl  -lavutil -lavcodec -lavformat -lswscale -lswresample -ltextfrog
+	gcc   -o mux2d.run mux2d.c -I/opt/lab/lab3/textfrog/embed  -fpic -lm -ldl  -lavutil -lavcodec -lavformat -lswscale -lswresample -ltextfrog
 	// -Wl,--unresolved-symbols=ignore-all // -Wl,-Bsymbolic
 	gdb --args 	./mux2d.run mux2.mkv
-	./mux2d.run mux2.mkv
+	./mux2d.run mux2.mkv libsvtav1 && 	ffplay -loop 99  mux2.mkv
 	ffprobe mux2.mkv
-	ffplay -loop 99  mux2.mkv
+
+kill.tfg ffplay
+libx265 has some picture errors than libx264
 	
  */
 
@@ -38,8 +40,11 @@ static textfrog tfg ;
 # define STREAM_FRAME_RATE 30 /* 25 images/s */
 # define STREAM_PIX_FMT AV_PIX_FMT_YUV420P /* default pix_fmt */
 
-# define SCALE_FLAGS SWS_BICUBIC
+# define THE_PRESET "veryfast"
+# define THE_ENC "libx265"
 
+# define SCALE_FLAGS SWS_BICUBIC
+static char * theEnc ;
 //const AVCodec *(*fn_avcodec_find_encoder_by_name)(const char *name);
 //static fn_avcodec_find_encoder_by_name avcodec_find_encoder_by_name ;
 // a wrapper around a single output AVStream
@@ -180,7 +185,7 @@ static void add_stream ( OutputStream * ost , AVFormatContext * oc ,
 		c -> gop_size = STREAM_FRAME_RATE * 2 ;
 		/* emit one intra frame every twelve frames at most */
 		c -> pix_fmt = STREAM_PIX_FMT ;
-		av_opt_set ( c -> priv_data , "preset" , "veryfast" , 0 ) ;
+		av_opt_set ( c -> priv_data , "preset" , THE_PRESET , 0 ) ;
 
 		break ;
 
@@ -539,8 +544,8 @@ int main ( int argc , char * * argv ) {
 	AVDictionary * opt = NULL ;
 	int i ;
 
-	if ( argc < 2 ) {
-		printf ( "usage: %s output_file\n"
+	if ( argc < 3 ) {
+		printf ( "usage: %s output_file encoder\n"
 			"API example program to output a media file with libavformat.\n"
 			"This program generates a synthetic audio and video stream, encodes and\n"
 			"muxes them into a file named output_file.\n"
@@ -551,11 +556,11 @@ int main ( int argc , char * * argv ) {
 	}
 
 	filename = argv [ 1 ] ;
-	for ( i = 2 ; i + 1 < argc ; i += 2 ) {
-		if ( ! strcmp ( argv [ i ] , "-flags" ) || ! strcmp ( argv [ i ] , "-fflags" ) )
-		av_dict_set ( & opt , argv [ i ] + 1 , argv [ i + 1 ] , 0 ) ;
-	}
-
+	theEnc = argv [ 2 ] ;
+	//	for ( i = 2 ; i + 1 < argc ; i += 2 ) {
+	//		if ( ! strcmp ( argv [ i ] , "-flags" ) || ! strcmp ( argv [ i ] , "-fflags" ) )
+	//		av_dict_set ( & opt , argv [ i ] + 1 , argv [ i + 1 ] , 0 ) ;
+	//	}
 	/* allocate the output media context */
 	avformat_alloc_output_context2 ( & oc , NULL , "matroska" , filename ) ;
 	if ( ! oc ) {
@@ -570,7 +575,7 @@ int main ( int argc , char * * argv ) {
 	/* Add the audio and video streams using the default format codecs
      * and initialize the codecs. */
 	if ( fmt -> video_codec != AV_CODEC_ID_NONE ) {
-		add_stream ( & video_st , oc , & video_codec , "libx265" ) ; // fmt -> video_codec ) ;
+		add_stream ( & video_st , oc , & video_codec , theEnc ) ; // fmt -> video_codec ) ;
 		have_video = 1 ;
 		encode_video = 1 ;
 	}
